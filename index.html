@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rod Auction Pro - Realtime Verified</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Firebase Realtime SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        :root {
+            --bg: #0d0f17;
+            --card: #161926;
+            --gold: #ffb703;
+            --green: #00f5d4;
+            --red: #ff0055;
+            --blue: #3a86ff;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; padding: 0; }
+        body { background: var(--bg); color: #fff; padding: 20px 10px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 1100px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
+
+        .navbar { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; background: var(--card); padding: 15px 20px; border-radius: 12px; border: 1px solid var(--border); }
+        .card { background: var(--card); border-radius: 16px; padding: 20px; border: 1px solid var(--border); position: relative; }
+
+        .timer-box { background: #1a1d2e; border: 1px solid var(--border); padding: 15px; text-align: center; border-radius: 12px; margin-bottom: 15px; }
+        .timer-val { font-size: 2rem; font-weight: 800; color: var(--green); }
+
+        .price-box { background: rgba(0, 245, 212, 0.05); border: 1px solid rgba(0, 245, 212, 0.2); text-align: center; padding: 15px; border-radius: 12px; margin-bottom: 15px; }
+        .price-val { font-size: 2.2rem; font-weight: 800; color: var(--green); }
+
+        .verify-card { background: rgba(58, 134, 255, 0.05); border: 1px dashed var(--blue); padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 15px; }
+        
+        input[type="text"], input[type="number"] { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: #0a0c14; color: #fff; margin-bottom: 10px; }
+        
+        .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .btn-blue { background: var(--blue); color: #fff; }
+        .btn-green { background: var(--green); color: #000; }
+        .btn-red { background: var(--red); color: #fff; }
+
+        .bid-controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+        .btn-sm { padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
+
+        .history-list { list-style: none; max-height: 200px; overflow-y: auto; margin-top: 10px; }
+        .history-item { background: rgba(255,255,255,0.02); padding: 10px; border-radius: 6px; margin-bottom: 5px; display: flex; justify-content: space-between; font-size: 0.85rem; border: 1px solid var(--border); align-items: center; }
+
+        .admin-panel { grid-column: 1 / -1; background: #201216; border: 1px solid var(--red); padding: 15px; border-radius: 12px; display: none; margin-bottom: 10px; }
+        .admin-panel.active { display: block; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="navbar">
+        <div style="font-weight: 800; color: var(--gold);"><i class="fa-solid fa-fish"></i> LELANG ROD REALTIME PRO</div>
+        <button class="btn-sm" style="border-color: var(--gold); color: var(--gold);" onclick="loginAdmin()">Panel Control Admin</button>
+    </div>
+
+    <!-- PANEL ADMIN REALTIME -->
+    <div class="admin-panel" id="adminPanel">
+        <h4 style="color: var(--red); margin-bottom: 10px;"><i class="fa-solid fa-user-shield"></i> Panel Kontrol Realtime Owner</h4>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn-sm" onclick="setTimerMinutes(5)">Reset Timer Ke 5 Menit Global</button>
+            <button class="btn-sm" onclick="setTimerMinutes(10)">Set Timer 10 Menit Global</button>
+            <button class="btn-sm" style="background: var(--red);" onclick="clearBids()">Reset Semua Bid</button>
+        </div>
+    </div>
+
+    <!-- KIRI: PRODUK -->
+    <div class="card">
+        <img src="https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=800&q=80" style="width:100%; height:250px; object-fit:cover; border-radius:10px; margin-bottom:15px;">
+        <h2>Poseidon Trident Carbon Rod 240cm</h2>
+        <p style="color: #8d99ae; font-size: 0.85rem; margin-top: 5px;">Kondisi Perfect | Rarity Mythic | Anti Scam Protection</p>
+    </div>
+
+    <!-- KANAN: LELANG REALTIME -->
+    <div class="card">
+        <div class="timer-box">
+            <small style="color: #8d99ae;">SISA WAKTU (SINKRON GLOBAL)</small>
+            <div class="timer-val" id="timer">--:--</div>
+        </div>
+
+        <div class="price-box">
+            <small style="color: #8d99ae;">BID TERTINGGI</small>
+            <div class="price-val" id="highestPrice">Rp 500.000</div>
+            <small id="highestBidder" style="color: var(--gold);">Oleh: Belum Ada</small>
+        </div>
+
+        <!-- FORM SCAN / LOGIN ROBLOX -->
+        <div class="verify-card" id="verifyBox">
+            <p style="font-size: 0.8rem; margin-bottom: 10px;">
+                <i class="fa-solid fa-qrcode"></i> <strong>Scan Barcode Roblox Profil Anda / Masukkan Link Profil</strong>
+            </p>
+            <input type="text" id="robloxInput" placeholder="Username / Link Profil Roblox">
+            <button class="btn btn-blue" onclick="verifyPlayer()">Verifikasi & Masuk War Bid</button>
+        </div>
+
+        <!-- FORM BIDDING -->
+        <div id="bidBox" style="display: none;">
+            <div class="bid-controls">
+                <button class="btn-sm" onclick="adjustAmount(-10000)">-10k</button>
+                <button class="btn-sm" onclick="adjustAmount(10000)">+10k</button>
+                <button class="btn-sm" onclick="adjustAmount(25000)">+25k</button>
+                <button class="btn-sm" onclick="adjustAmount(50000)">+50k</button>
+            </div>
+
+            <input type="number" id="bidAmountInput" placeholder="Nominal Bid Anda">
+
+            <div style="display: flex; gap: 8px; align-items: center; font-size: 0.8rem; margin-bottom: 10px; color: #8d99ae;">
+                <input type="checkbox" id="anonCheck">
+                <label for="anonCheck">Sembunyikan Identitas di Publik (Mode Anonim)</label>
+            </div>
+
+            <button class="btn btn-green" onclick="submitBid()">KIRIM PENAWARAN</button>
+        </div>
+
+        <h4 style="margin-top: 15px; font-size: 0.85rem; color: #8d99ae;">Riwayat Penawaran & Player War:</h4>
+        <ul class="history-list" id="historyList"></ul>
+    </div>
+</div>
+
+<script>
+    // 1. TERHUBUNG LANGSUNG KE FIREBASE DATABASE MILIK ANDA
+    const firebaseConfig = {
+        databaseURL: "https://projeklelang-1e39d-default-rtdb.firebaseio.com"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // 2. TERHUBUNG LANGSUNG KE SPREADSHEET (GOOGLE APPS SCRIPT) MILIK ANDA
+    const SPREADSHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxwOwomSE_JOfcs5mNNdGfPQ1A3nDaVgcuGAivLihP9TXTYXFTVC_LJQUGYzvkG9LoO/exec";
+
+    let currentUser = null;
+    let targetEndTime = 0;
+    let highestAmount = 25000;
+    let isAdmin = false;
+
+    // LISTEN DATA REALTIME FIREBASE (SINKRON TERTINGGI & TIMER)
+    db.ref('auction_state').on('value', snapshot => {
+        const data = snapshot.val();
+        if(!data) return;
+
+        targetEndTime = data.targetEndTime || Date.now() + 300000;
+        highestAmount = data.highestAmount || 500000;
+
+        document.getElementById("highestPrice").innerText = `Rp ${highestAmount.toLocaleString('id-ID')}`;
+        
+        if(data.highestBidder) {
+            const nameShow = data.highestBidder.isAnon ? "User_*** (Anonim)" : data.highestBidder.username;
+            document.getElementById("highestBidder").innerText = `Oleh: ${nameShow}`;
+        }
+    });
+
+    // LISTEN RIWAYAT BID & FITUR KICK PLAYER SCAM
+    db.ref('bids').on('value', snapshot => {
+        const list = document.getElementById("historyList");
+        list.innerHTML = "";
+        
+        snapshot.forEach(child => {
+            const key = child.key;
+            const b = child.val();
+            const li = document.createElement("li");
+            li.className = "history-item";
+
+            const namePublic = b.isAnon ? "User_*** (Anonim)" : b.username;
+            
+            let kickBtnHTML = "";
+            if(isAdmin) {
+                // Admin bisa melihat nama asli walau anonim & ada tombol Kick
+                kickBtnHTML = `<button onclick="kickPlayer('${key}')" style="background:red; color:white; border:none; padding:3px 6px; border-radius:4px; font-size:0.7rem; cursor:pointer; margin-left:5px;">Kick Bid</button>`;
+            }
+
+            li.innerHTML = `
+                <div>
+                    <strong>${namePublic}</strong> ${isAdmin ? `<small>(${b.username})</small>` : ''}
+                    ${kickBtnHTML}
+                </div>
+                <span style="color: var(--green); font-weight: bold;">Rp ${parseInt(b.amount).toLocaleString('id-ID')}</span>
+            `;
+            list.insertBefore(li, list.firstChild);
+        });
+    });
+
+    // GLOBAL COUNTDOWN TIMER SINKRON
+    setInterval(() => {
+        const now = Date.now();
+        const diff = targetEndTime - now;
+
+        if (diff <= 0) {
+            document.getElementById("timer").innerText = "SELESAI";
+            document.getElementById("bidBox").style.display = "none";
+            return;
+        }
+
+        let m = Math.floor(diff / 60000);
+        let s = Math.floor((diff % 60000) / 1000);
+        document.getElementById("timer").innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+    }, 1000);
+
+    // VERIFIKASI ROBLOX PLAYER
+    function verifyPlayer() {
+        const val = document.getElementById("robloxInput").value.trim();
+        if(!val) { alert("Masukkan Username atau Link Profil Roblox!"); return; }
+
+        currentUser = {
+            username: val,
+            verifiedAt: new Date().toISOString()
+        };
+
+        document.getElementById("verifyBox").style.display = "none";
+        document.getElementById("bidBox").style.display = "block";
+        document.getElementById("bidAmountInput").value = highestAmount + 10000;
+    }
+
+    // REGULASI TAMBAH / KURANG BID
+    function adjustAmount(val) {
+        let current = parseInt(document.getElementById("bidAmountInput").value) || highestAmount;
+        let res = current + val;
+        if(res < 0) res = 0;
+        document.getElementById("bidAmountInput").value = res;
+    }
+
+    // MENGIRIM PENAWARAN (BID)
+    function submitBid() {
+        if(!currentUser) return;
+        const amount = parseInt(document.getElementById("bidAmountInput").value);
+        const isAnon = document.getElementById("anonCheck").checked;
+
+        if(isNaN(amount) || amount <= highestAmount) {
+            alert(`Bid harus lebih besar dari Rp ${highestAmount.toLocaleString('id-ID')}`);
+            return;
+        }
+
+        const bidData = {
+            username: currentUser.username,
+            amount: amount,
+            isAnon: isAnon,
+            timestamp: Date.now()
+        };
+
+        // 1. Simpan ke Firebase Realtime Database Anda
+        db.ref('bids').push(bidData);
+        db.ref('auction_state').update({
+            highestAmount: amount,
+            highestBidder: bidData
+        });
+
+        // 2. Rekap Otomatis ke Google Spreadsheet Anda
+        fetch(SPREADSHEET_WEB_APP_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bidData)
+        });
+
+        alert("Penawaran Berhasil Dikirim!");
+    }
+
+    // PANEL ADMIN / KONTROL OWNER
+    function loginAdmin() {
+        const pin = prompt("Masukkan PIN Admin:");
+        if(pin === "1234") {
+            isAdmin = true;
+            document.getElementById("adminPanel").classList.add("active");
+            alert("Login Admin Berhasil!");
+            db.ref('bids').get(); // Refresh tampilan
+        } else {
+            alert("PIN Salah!");
+        }
+    }
+
+    function setTimerMinutes(mins) {
+        const newEndTime = Date.now() + (mins * 60 * 1000);
+        db.ref('auction_state').update({ targetEndTime: newEndTime });
+    }
+
+    function clearBids() {
+        if(confirm("Yakin ingin menghapus seluruh riwayat bid?")) {
+            db.ref('bids').remove();
+            db.ref('auction_state').update({ highestAmount: 500000, highestBidder: null });
+        }
+    }
+
+    function kickPlayer(bidKey) {
+        if(confirm("Tendang player/hapus penawaran scam ini secara realtime?")) {
+            db.ref(`bids/${bidKey}`).remove();
+        }
+    }
+</script>
+</body>
+</html>
